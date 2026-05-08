@@ -1,6 +1,6 @@
 ---
 name: gitlab-glab-ops
-description: GitLab muveletek glab CLI-val: auth, repository, issue, merge request, CI/CD, release, valtozok es nyers API hivasok biztonsagos, strukturalt workflow-val.
+description: GitLab muveletek glab CLI-val: auth, repository, issue, merge request, CI/CD, release, valtozok, repo-klonozas es nyers API hivasok biztonsagos, strukturalt workflow-val.
 ---
 
 # Instructions
@@ -19,6 +19,14 @@ Feladatod, hogy GitLab eroforrasokat kezelj kizarolag a `glab` CLI segitsegevel:
 - es nyers REST/GraphQL API hivast.
 
 Mindig `glab` parancsokat hasznalj, ne hasznalj kozvetlen `curl` hivast.
+
+Lokalis repository munkaterulet alapertelmezett helye:
+
+```text
+/Users/pappmico/repo
+```
+
+Ha egy feladathoz szukseges repo nincs lokalisan ebben a konyvtarban, ide klonozd le.
 
 ---
 
@@ -39,13 +47,15 @@ Mindig `glab` parancsokat hasznalj, ne hasznalj kozvetlen `curl` hivast.
      ```
 
 3. **Repo-kontekstus preferencia**
-   - Ha a feladat repohoz kotott, a lokalis git repobol dolgozz.
-   - Ha nem lokalis repo, hasznald a `-R OWNER/REPO` vagy teljes URL formatumot.
+    - Ha a feladat repohoz kotott, a lokalis git repobol dolgozz.
+    - A lokalis repok alaphelye: `/Users/pappmico/repo`.
+    - Ha a repo nincs meg lokalisan, eloszor ellenorizd a cel projektet `glab repo view ...` paranccsal, majd klonozd a `/Users/pappmico/repo` ala.
+    - Ha nem lokalis repo a megfelelo kontextus, hasznald a `-R OWNER/REPO` vagy teljes URL formatumot.
 
 4. **JSON preferencia gepi feldolgozashoz**
-   - Ahol lehet, kerj `json` outputot:
-     - `-F json`
-     - vagy `glab api` JSON valasz
+    - Ahol lehet, kerj `json` outputot:
+      - `--output json`
+      - vagy `glab api` JSON valasz
 
 5. **Mutacios parancsoknal ovatos vegrehajtas**
    - Mutacio elott roviden ellenorizd a cel objektumot (`view`/`list`).
@@ -104,9 +114,9 @@ Megjegyzes:
 Listazas, megtekintes, klonozas, letrehozas:
 
 ```bash
-glab repo list -F json
-glab repo view -F json
-glab repo clone group/repo
+glab repo list --output json
+glab repo view --output json
+glab repo clone group/repo /Users/pappmico/repo/repo
 glab repo create group/uj-projekt --private --description "projekt leiras"
 ```
 
@@ -119,8 +129,8 @@ glab repo view -R group/repo
 ### 3) Issue muveletek
 
 ```bash
-glab issue list --all -O json
-glab issue view 123 --comments -F json
+glab issue list --all --output json
+glab issue view 123 --comments --output json
 glab issue create -t "Cim" -d "Leiras" -l bug,backend
 glab issue update 123 --label priority::high --assignee @me
 glab issue note 123 -m "Frissites: javitas folyamatban"
@@ -137,8 +147,8 @@ glab issue board view
 ### 4) Merge Request muveletek
 
 ```bash
-glab mr list --all -F json
-glab mr view 456 --comments -F json
+glab mr list --all --output json
+glab mr view 456 --comments --output json
 glab mr diff 456 --raw
 glab mr create --fill --target-branch main --label feature
 glab mr update 456 --ready --reviewer reviewer1
@@ -157,7 +167,7 @@ glab mr merge
 ### 5) CI/CD pipeline es job muveletek
 
 ```bash
-glab ci list --status failed -F json
+glab ci list --status failed --output json
 glab ci status --branch main --compact
 glab ci status --live
 glab ci run --branch main --variables-env key1:val1,key2:val2
@@ -184,8 +194,8 @@ glab release create v1.2.3 ./dist/*
 ### 7) Variable muveletek (project/group)
 
 ```bash
-glab variable list -F json
-glab variable list --group mygroup -F json
+glab variable list --output json
+glab variable list --group mygroup --output json
 glab variable set MY_KEY "my-value" --masked --protected
 glab variable set SECRET_TOKEN < token.txt
 glab variable update MY_KEY --scope production
@@ -225,8 +235,8 @@ printf '%s\n' '{"title":"Uj issue"}' | glab api projects/$PROJECT_ID/issues -X P
 ### 9) Felhasznaloi activity
 
 ```bash
-glab user events -F json
-glab user events --all -F json
+glab user events --output json
+glab user events --all --output json
 ```
 
 ---
