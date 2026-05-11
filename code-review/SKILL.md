@@ -47,35 +47,45 @@ Lokalis git repora ne epits, es ne hasznalj lokalis `git diff`-et.
 
 ## 2) Inputok
 
-- `PROJECT_ID`: az MR listabol automatikusan feloldando
-- `MR_ID`: user altal kivalasztott assignee MR alapjan automatikusan feloldando
+- `PROJECT_ID`: ha elerheto, ebből azonositsd a projektet
+- `MR_ID`: a reviewzando merge request IID-je
+- alternativ bemenetkent MR URL vagy projektnev/path is elfogadhato
 
-### MR valasztas assignee lista alapjan (kotelezo)
+### MR azonositas (altalanos)
 
-Mindig a bejelentkezett userre assigneolt, nyitott MR-eket listazd ki,
-es kerdezd meg, melyiket akarja reviewzni.
+Ne vard el, hogy a user minden technikai azonosito parost kezzel megadjon,
+de ne is korlatozd a workflow-t egyetlen szervezeti mintara.
 
-Ne vard el, hogy a user kezzel megadja a `PROJECT_ID`/`MR_ID` parost.
+Elfogadhato kiindulasi pontok:
+- kozvetlen MR URL
+- `PROJECT_ID` + `MR_ID`
+- projekt path + MR IID
+- ha nincs konkret MR megadva, listazhatsz relevans nyitott MR-eket, es
+  megkerdezheted, melyiket reviewzzuk
+
+Peldak:
 
 ```bash
-glab api merge_requests \
-  -f scope=assigned_to_me \
-  -f state=opened \
-  -f per_page=100
+glab api merge_requests -f state=opened -f per_page=100
 ```
 
-Javasolt listazas (attekintheto valasztashoz):
-- projekt (`project_id`)
+vagy projektszinten:
+
+```bash
+glab mr list --all
+```
+
+Javasolt listazas valasztashoz:
+- projekt (`project_id` vagy path)
 - MR IID (`iid`)
 - cim (`title`)
 - URL (`web_url`)
 - branch par (`source_branch` -> `target_branch`)
 
 Kotelezo viselkedes:
-1. Kerd le az assignee MR listat.
-2. Tedd fel a kerdest: melyik MR-t reviewzzuk.
-3. A user valasztasa alapjan allitsd be a `PROJECT_ID` es `MR_ID` ertekeket.
-4. Ellenorizd, hogy egyik sem ures/null.
+1. Oldd fel a reviewzando MR-t a rendelkezésre allo input alapjan.
+2. Ha ez nem egyertelmu, kerdezz vissza roviden.
+3. Ellenorizd, hogy a hasznalt `PROJECT_ID` es `MR_ID` nem ures/null.
 
 Ellenorzes:
 
@@ -264,33 +274,38 @@ Ha valamit nem lehet megitelni:
 
 ------------------------------------------------------------------------
 
-## 6) GitLab inline kommenteles discussion-kent (`glab`)
+## 6) GitLab inline kommenteles discussion-kent (`glab`) - opcionális
 
-Ha a review Merge Request-hez kotodik, a textualis review mellett
-keszits line-level kommenteket GitLabon `discussion` formaban, nem draftkent.
+Ha a user nemcsak textualis reviewt ker, hanem azt is, hogy a findingok
+keruljenek fel az MR-re, akkor keszits line-level kommenteket GitLabon
+`discussion` formaban.
 
-Kotelezo viselkedes:
-- A `Must fix (blokkolo)` es `Should fix` pontok mindegyikehez hozz letre
-  inline `discussion` kommentet konkret fajl/sor poziciora.
-- A `Teszt javaslatok` pontok ne inline discussionkent menjenek, hanem
-  sima MR-komment draftkent (`draft_note`).
-- A `draft_notes` vegpontot csak a `Teszt javaslatok` sima MR-kommentjeihez hasznald.
-- A komment a `projects/$PROJECT_ID/merge_requests/$MR_ID/discussions` vegponton menjen.
+Alapertelmezett viselkedes:
+- Elso korben textualis reviewt adj vissza.
+- GitLabra csak akkor kommentelj, ha a user ezt keri, vagy a feladat ezt
+  egyertelmuen elvarja.
+
+Ha kommentelni kell:
+- A `Must fix (blokkolo)` es `Should fix` pontokhoz lehetoseg szerint hozz
+  letre inline `discussion` kommentet konkret fajl/sor poziciora.
+- A `Teszt javaslatok` mehetnek kulon MR-kommentkent, nem szuksegszeruen
+  inline poziciora.
+- A komment a `projects/$PROJECT_ID/merge_requests/$MR_ID/discussions`
+  vegponton menjen.
 - A request body-t JSON-kent kuldd (`--input -`), ne `-f`/`-F`
-  form-urlencoded formatumban (korabbi request encoding problema miatt).
+  form-urlencoded formatumban.
 - A komment tartalma legyen rovid es akcio-orientalt:
   - Mi a problema
   - Miert kockazat
   - Konkret javitasi irany
-  - A komment magyar ekezetes legyen.
   - A `Konkret javitasi irany` minden esetben uj sorban kezdodjon.
 
 Javasolt workflow `glab`-bal:
-1. Szamold ki a `PROJECT_ID` es `MR_ID` erteket (ne varj user inputra).
+1. Oldd fel a `PROJECT_ID` es `MR_ID` erteket a rendelkezesre allo inputbol.
 2. Kerd le az MR aktualis verzioit: `.../versions`, es ebbol vedd a
    `base_commit_sha`, `start_commit_sha`, `head_commit_sha` ertekeket.
 3. Minden relevans findinghoz kuldj inline `discussion` kommentet JSON
-   payload-dal a pontos diff poziciora.
+   payload-dal a pontos diff poziciora, ha van egyertelmu diff-pozicio.
 
 Pelda SHA feloldasra (`versions` endpoint):
 
@@ -336,10 +351,10 @@ printf '%s\n' '{
   --input -
 ```
 
-Pelda `Teszt javaslatok` draft MR-kommentre (nem inline):
+Pelda `Teszt javaslatok` MR-kommentre (nem inline):
 
 ```bash
-glab api projects/$PROJECT_ID/merge_requests/$MR_ID/draft_notes \
+glab api projects/$PROJECT_ID/merge_requests/$MR_ID/notes \
   -X POST \
   -f note="Teszt javaslat: unit teszt null inputra, integration teszt hibas jogosultsagra, e2e teszt regresszios happy path-ra."
 ```
@@ -353,39 +368,12 @@ Megjegyzesek:
   (`Content-Type: application/json`, `--input -`).
 - Inline kommentben a `Javaslat:` sor mindig kulon sorban legyen (beagyazott
   `\n` sortoressel), ne egybefuzve a problema/kockazat szoveggel.
-- Ha nincs egyertelmu, valos diff pozicio, azt jelold a textualis reviewban;
-  `Must fix`/`Should fix` findingot ne rakj draftba.
-- A `Teszt javaslatok` kommenteket viszont draftban kell hagyni, es csak
-  explicit keresre publish-old.
+- Ha nincs egyertelmu, valos diff pozicio, azt jelold a textualis reviewban.
+- Ne eroltesd az inline kommentet olyan findingra, amelyhez nem rendelheto
+  pontos diff-sor.
 
 ------------------------------------------------------------------------
 
 ## 7) Extra (opcionalis)
 
 - Rejtett regressziok listaja (mit erdemes manualisan smoke-tesztelni)
-
-------------------------------------------------------------------------
-
-## 8) Munkanaplo logolas (`op`)
-
-Minden elvegzett review utan kotelezo a raforditott ido logolasa az `op`
-CLI-vel.
-
-Kotelezo viselkedes:
-- A review lezarasakor kerdezd le az aktualis munkacsomagot: `op status`
-- A munkat mindig logold: `op log <workpackage> <oraszam> "<rovid review komment>"`
-- Az oraszam minimum `0.5`, es csak `0.5` lepeskozzel novelheto
-- A review komplexitasatol fuggoen altalaban `1.0`-`2.0` ora a jellemzo
-- A komment legyen rovid, ertelmes, pl.: `"MR review: API regresszios kockazatok es teszthianyok"`
-
-Javasolt workflow:
-1. `op status` -> workpackage azonositas
-2. Raforditas becslese (0.5-os lepessel)
-3. `op log` futtatasa a megfelelo kommenttel
-
-Pelda:
-
-```bash
-op status
-op log TUMA-1234 1.5 "MR review: must-fix hibak, security es teszt gap-ek"
-```
